@@ -1,5 +1,6 @@
 package com.example.gestorarchivos;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
 import android.widget.ArrayAdapter;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -27,14 +29,21 @@ public class MainActivity extends AppCompatActivity {
     private EditText etContenido;
     private Button btnGuardar;
     private Button btnListar;
+    private Button btnCompartir;
     private ListView lvArchivos;
     private TextView tvContenidoArchivo;
 
-    // Lista que almacenará los nombres de los archivos
+    // Lista con los nombres REALES de los archivos (para leer/compartir/comparar)
     private ArrayList<String> listaArchivos;
+
+    // Lista con el texto que se MUESTRA en el ListView (nombre + tamaño)
+    private ArrayList<String> listaMostrar;
 
     // Adaptador para mostrar los archivos en el ListView
     private ArrayAdapter<String> adaptadorArchivos;
+
+    // Guarda cuál archivo está seleccionado actualmente (para el botón Compartir)
+    private String archivoSeleccionado = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,17 +55,19 @@ public class MainActivity extends AppCompatActivity {
         etContenido = findViewById(R.id.etContenido);
         btnGuardar = findViewById(R.id.btnGuardar);
         btnListar = findViewById(R.id.btnListar);
+        btnCompartir = findViewById(R.id.btnCompartir);
         lvArchivos = findViewById(R.id.lvArchivos);
         tvContenidoArchivo = findViewById(R.id.tvContenidoArchivo);
 
-        // Inicialización de la lista
+        // Inicialización de las listas
         listaArchivos = new ArrayList<>();
+        listaMostrar = new ArrayList<>();
 
-        // Creación del adaptador
+        // Creación del adaptador (usa listaMostrar, que trae nombre + tamaño)
         adaptadorArchivos = new ArrayAdapter<>(
                 this,
                 R.layout.item_archivo,
-                listaArchivos
+                listaMostrar
         );
 
         // Asociar el adaptador con el ListView
@@ -68,9 +79,19 @@ public class MainActivity extends AppCompatActivity {
         // Evento del botón Listar
         btnListar.setOnClickListener(v -> listarArchivos());
 
-        // Evento al seleccionar un archivo de la lista
+        // Evento del botón Compartir
+        btnCompartir.setOnClickListener(v -> {
+            if (archivoSeleccionado == null) {
+                Toast.makeText(this, "Selecciona un archivo primero", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            compartirArchivo(archivoSeleccionado);
+        });
+
+        // Evento al seleccionar un archivo de la lista (clic = leer y marcar como seleccionado)
         lvArchivos.setOnItemClickListener((parent, view, position, id) -> {
             String nombreArchivo = listaArchivos.get(position);
+            archivoSeleccionado = nombreArchivo;
             leerArchivo(nombreArchivo);
         });
 
@@ -81,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Guarda un archivo de texto en el almacenamiento
      * externo privado de la aplicación.
+     * Valida que no exista ya un archivo con el mismo nombre.
      */
     private void guardarArchivo() {
 
@@ -95,8 +117,6 @@ public class MainActivity extends AppCompatActivity {
                 .toString();
 
         // B) Validar información
-
-        // Validar el nombre del archivo
         if (nombreArchivo.isEmpty()) {
             etNombreArchivo.setError("Escribe el nombre del archivo");
             etNombreArchivo.requestFocus();
@@ -109,7 +129,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // C) Consultar estado de Almacenamiento
-        // La clase Environment permite consultar el estado de Almacenamiento externo
         String estadoAlmacenamiento = Environment.getExternalStorageState();
 
         // D) Comprobar que el almacenamiento esté disponible
@@ -123,16 +142,23 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // E) Obtener carpeta externa de la aplicación
-        // Obtiene la carpeta externa -> el resultado se guarda en un File
-        // (también puede representar direcciones y rutas)
         File carpeta = getExternalFilesDir(null);
 
-        // Si el objeto "carpeta" no existe, imprime el mensaje de error
         if (carpeta == null) {
             Toast.makeText(
                     this,
                     "No fue posible acceder al almacenamiento",
                     Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        // F) EVITAR NOMBRES DUPLICADOS
+        if (archivoExiste(carpeta, nombreArchivo)) {
+            Toast.makeText(
+                    this,
+                    "Ya existe un archivo con ese nombre",
+                    Toast.LENGTH_SHORT
             ).show();
             return;
         }
@@ -157,18 +183,38 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * Verifica si ya existe un archivo con ese nombre en la carpeta dada.
+     */
+    private boolean archivoExiste(File carpeta, String nombreArchivo) {
+        File archivo = new File(carpeta, nombreArchivo);
+        return archivo.exists();
+    }
+
+    /**
+     * Convierte un tamaño en bytes a un texto legible (B, KB, MB...).
+     */
+    private String formatearTamano(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String unidad = "KMGTPE".charAt(exp - 1) + "B";
+        return String.format(Locale.getDefault(), "%.1f %s", bytes / Math.pow(1024, exp), unidad);
+    }
+
+    /**
      * Obtiene los archivos almacenados en la carpeta
-     * externa privada y los muestra en el ListView.
+     * externa privada, los ordena por nombre, calcula su tamaño
+     * y los muestra en el ListView.
      */
     private void listarArchivos() {
 
-        // Limpiar la lista anterior
+        // Limpiar las listas anteriores
         listaArchivos.clear();
+        listaMostrar.clear();
+        archivoSeleccionado = null;
 
         // Obtener la carpeta privada de la aplicación
         File carpeta = getExternalFilesDir(null);
 
-        // Validar que la carpeta exista antes de listar
         if (carpeta == null) {
             Toast.makeText(
                     this,
@@ -183,11 +229,11 @@ public class MainActivity extends AppCompatActivity {
         File[] archivos = carpeta.listFiles();
 
         if (archivos != null) {
-            // Ordenar los archivos alfabéticamente (compatible con API 21+)
+            // ORDENAR POR NOMBRE (sin distinguir mayúsculas/minúsculas)
             Arrays.sort(archivos, new Comparator<File>() {
                 @Override
                 public int compare(File f1, File f2) {
-                    return f1.getName().compareTo(f2.getName());
+                    return f1.getName().compareToIgnoreCase(f2.getName());
                 }
             });
 
@@ -195,6 +241,10 @@ public class MainActivity extends AppCompatActivity {
             for (File f : archivos) {
                 if (f.isFile()) {
                     listaArchivos.add(f.getName());
+
+                    // MOSTRAR TAMAÑO DEL ARCHIVO junto al nombre
+                    String textoConTamano = f.getName() + "  (" + formatearTamano(f.length()) + ")";
+                    listaMostrar.add(textoConTamano);
                 }
             }
         }
@@ -235,5 +285,45 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             tvContenidoArchivo.setText("Error al leer el archivo: " + e.getMessage());
         }
+    }
+
+    /**
+     * Comparte el contenido de un archivo .txt mediante
+     * un Intent implícito (WhatsApp, Gmail, etc.).
+     *
+     * @param nombreArchivo nombre del archivo a compartir
+     */
+    private void compartirArchivo(String nombreArchivo) {
+        File carpeta = getExternalFilesDir(null);
+
+        if (carpeta == null) {
+            Toast.makeText(this, "No fue posible acceder a la carpeta", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        File archivo = new File(carpeta, nombreArchivo);
+
+        if (!archivo.exists()) {
+            Toast.makeText(this, "El archivo no existe", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        StringBuilder contenido = new StringBuilder();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                contenido.append(linea).append("\n");
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Error al leer el archivo: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_SUBJECT, nombreArchivo);
+        intent.putExtra(Intent.EXTRA_TEXT, contenido.toString());
+        startActivity(Intent.createChooser(intent, "Compartir archivo vía"));
     }
 }
