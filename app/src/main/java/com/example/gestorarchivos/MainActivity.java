@@ -3,6 +3,8 @@ package com.example.gestorarchivos;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -27,14 +29,18 @@ public class MainActivity extends AppCompatActivity {
     // Elementos de la interfaz
     private EditText etNombreArchivo;
     private EditText etContenido;
+    private EditText etBuscar;
     private Button btnGuardar;
     private Button btnListar;
     private Button btnCompartir;
     private ListView lvArchivos;
     private TextView tvContenidoArchivo;
 
-    // Lista con los nombres REALES de los archivos (para leer/compartir/comparar)
+    // Lista con los nombres REALES de TODOS los archivos (sin filtrar)
     private ArrayList<String> listaArchivos;
+
+    // Lista con los nombres REALES que se están mostrando actualmente (puede estar filtrada)
+    private ArrayList<String> listaArchivosFiltrados;
 
     // Lista con el texto que se MUESTRA en el ListView (nombre + tamaño)
     private ArrayList<String> listaMostrar;
@@ -53,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
         // Vinculación de elementos XML con Java
         etNombreArchivo = findViewById(R.id.etNombreArchivo);
         etContenido = findViewById(R.id.etContenido);
+        etBuscar = findViewById(R.id.etBuscar);
         btnGuardar = findViewById(R.id.btnGuardar);
         btnListar = findViewById(R.id.btnListar);
         btnCompartir = findViewById(R.id.btnCompartir);
@@ -61,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Inicialización de las listas
         listaArchivos = new ArrayList<>();
+        listaArchivosFiltrados = new ArrayList<>();
         listaMostrar = new ArrayList<>();
 
         // Creación del adaptador (usa listaMostrar, que trae nombre + tamaño)
@@ -90,9 +98,23 @@ public class MainActivity extends AppCompatActivity {
 
         // Evento al seleccionar un archivo de la lista (clic = leer y marcar como seleccionado)
         lvArchivos.setOnItemClickListener((parent, view, position, id) -> {
-            String nombreArchivo = listaArchivos.get(position);
+            String nombreArchivo = listaArchivosFiltrados.get(position);
             archivoSeleccionado = nombreArchivo;
             leerArchivo(nombreArchivo);
+        });
+
+        // Evento de búsqueda: filtra la lista mientras el usuario escribe
+        etBuscar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                filtrarArchivos(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
         });
 
         // Mostrar los archivos existentes al abrir la aplicación
@@ -207,9 +229,8 @@ public class MainActivity extends AppCompatActivity {
      */
     private void listarArchivos() {
 
-        // Limpiar las listas anteriores
+        // Limpiar la lista maestra
         listaArchivos.clear();
-        listaMostrar.clear();
         archivoSeleccionado = null;
 
         // Obtener la carpeta privada de la aplicación
@@ -241,15 +262,40 @@ public class MainActivity extends AppCompatActivity {
             for (File f : archivos) {
                 if (f.isFile()) {
                     listaArchivos.add(f.getName());
-
-                    // MOSTRAR TAMAÑO DEL ARCHIVO junto al nombre
-                    String textoConTamano = f.getName() + "  (" + formatearTamano(f.length()) + ")";
-                    listaMostrar.add(textoConTamano);
                 }
             }
         }
 
-        // Notificar al adaptador que la lista cambió
+        // Vuelve a aplicar el filtro de búsqueda actual (si hay texto en etBuscar)
+        String textoBusqueda = etBuscar.getText().toString();
+        filtrarArchivos(textoBusqueda);
+    }
+
+    /**
+     * Filtra listaArchivos según el texto de búsqueda y actualiza
+     * listaArchivosFiltrados + listaMostrar (nombre + tamaño).
+     *
+     * @param textoBusqueda texto escrito en el campo de búsqueda
+     */
+    private void filtrarArchivos(String textoBusqueda) {
+        listaArchivosFiltrados.clear();
+        listaMostrar.clear();
+
+        File carpeta = getExternalFilesDir(null);
+
+        for (String nombre : listaArchivos) {
+            if (nombre.toLowerCase().contains(textoBusqueda.toLowerCase())) {
+                listaArchivosFiltrados.add(nombre);
+
+                if (carpeta != null) {
+                    File f = new File(carpeta, nombre);
+                    listaMostrar.add(nombre + "  (" + formatearTamano(f.length()) + ")");
+                } else {
+                    listaMostrar.add(nombre);
+                }
+            }
+        }
+
         adaptadorArchivos.notifyDataSetChanged();
     }
 
