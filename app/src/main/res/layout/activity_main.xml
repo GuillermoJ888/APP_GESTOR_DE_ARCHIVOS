@@ -242,6 +242,22 @@
 
                     </LinearLayout>
 
+                    <!-- Buscar archivos por nombre -->
+                    <EditText
+                        android:id="@+id/etBuscar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_input"
+                        android:hint="Buscar archivo..."
+                        android:inputType="text"
+                        android:maxLines="1"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
+                        android:textColor="#0F172A"
+                        android:textColorHint="#B0BAC3"
+                        android:textSize="13sp" />
+
                     <ListView
                         android:id="@+id/lvArchivos"
                         android:layout_width="match_parent"
