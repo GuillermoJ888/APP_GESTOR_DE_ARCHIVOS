@@ -169,6 +169,7 @@
                             android:textSize="14sp"
                             android:textStyle="bold"
                             android:textAllCaps="false" />
+
                         <Button
                             android:id="@+id/btnCompartir"
                             android:layout_width="wrap_content"
@@ -205,40 +206,19 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
+                        <View
+                            android:layout_width="4dp"
+                            android:layout_height="16dp"
+                            android:background="#14B8A6"
+                            android:layout_marginEnd="8dp" />
 
-                            <View
-                                android:layout_width="4dp"
-                                android:layout_height="16dp"
-                                android:background="#14B8A6"
-                                android:layout_marginEnd="8dp" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Archivos almacenados"
-                                android:textColor="#0F172A"
-                                android:textSize="15sp"
-                                android:textStyle="bold" />
-
-                        </LinearLayout>
-
-                        <android.widget.Button
-                            android:id="@+id/btnListar"
+                        <TextView
                             android:layout_width="wrap_content"
-                            android:layout_height="34dp"
-                            android:background="@drawable/bg_chip"
-                            android:paddingHorizontal="14dp"
-                            android:text="Actualizar"
-                            android:textColor="#14B8A6"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:textAllCaps="false" />
+                            android:layout_height="wrap_content"
+                            android:text="Archivos almacenados"
+                            android:textColor="#0F172A"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
 
                     </LinearLayout>
 
